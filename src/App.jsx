@@ -279,7 +279,20 @@ export default function App() {
         <div style={{ ...labelStyle, marginTop: 8, marginBottom: 8 }}>{zh ? "图文内容" : "Content Blocks"}</div>
 
         {blocks.map((b, i) => (
-          <div key={b.id} style={{ marginBottom: 12, position: "relative" }}>
+          <div key={b.id} style={{ marginBottom: 12, position: "relative", border: `1px solid ${C.b}`, borderRadius: 12, padding: 10 }}>
+            {/* Move & delete controls */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 2, marginBottom: 6 }}>
+              <button disabled={i === 0} onClick={() => {
+                const nb = [...blocks]; [nb[i - 1], nb[i]] = [nb[i], nb[i - 1]];
+                setForm({ ...ef, blocks: nb });
+              }} style={{ ...iconBtn, color: i === 0 ? "#ddd" : C.s, fontSize: 14, width: 28, height: 28, justifyContent: "center", background: "#f8f8f8", borderRadius: 6 }}>↑</button>
+              <button disabled={i === blocks.length - 1} onClick={() => {
+                const nb = [...blocks]; [nb[i], nb[i + 1]] = [nb[i + 1], nb[i]];
+                setForm({ ...ef, blocks: nb });
+              }} style={{ ...iconBtn, color: i === blocks.length - 1 ? "#ddd" : C.s, fontSize: 14, width: 28, height: 28, justifyContent: "center", background: "#f8f8f8", borderRadius: 6 }}>↓</button>
+              <button onClick={() => setForm({ ...ef, blocks: blocks.filter((x) => x.id !== b.id) })}
+                style={{ ...iconBtn, color: "#c97070", fontSize: 14, width: 28, height: 28, justifyContent: "center", background: "#f8f8f8", borderRadius: 6 }}>×</button>
+            </div>
             {b.type === "img" && (
               <>
                 {b.src?.includes("video") || b.src?.match(/\.(mp4|mov|webm)/i) ? (
@@ -290,7 +303,7 @@ export default function App() {
                 <input value={b.cap || ""} onChange={(e) => {
                   const nb = [...blocks]; nb[i] = { ...nb[i], cap: e.target.value };
                   setForm({ ...ef, blocks: nb });
-                }} placeholder={zh ? "图片说明…" : "Caption…"} style={{ ...inputStyle, fontSize: 13, fontStyle: "italic" }} />
+                }} placeholder={zh ? "图片说明…" : "Caption…"} style={{ ...inputStyle, fontSize: 13, fontStyle: "italic", marginBottom: 0 }} />
               </>
             )}
             {b.type === "txt" && (
@@ -298,10 +311,8 @@ export default function App() {
                 const nb = [...blocks]; nb[i] = { ...nb[i], text: e.target.value };
                 setForm({ ...ef, blocks: nb });
               }} rows={2} placeholder={zh ? "写点什么…" : "Write something…"}
-                style={{ ...inputStyle, resize: "vertical", lineHeight: 1.7 }} />
+                style={{ ...inputStyle, resize: "vertical", lineHeight: 1.7, marginBottom: 0 }} />
             )}
-            <button onClick={() => setForm({ ...ef, blocks: blocks.filter((x) => x.id !== b.id) })}
-              style={{ position: "absolute", top: 4, right: 4, ...iconBtn, color: "#c97070", background: "rgba(255,255,255,.8)", borderRadius: "50%", width: 24, height: 24, justifyContent: "center" }}>×</button>
           </div>
         ))}
 
