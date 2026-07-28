@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCwl7zy-bMegsFw-MKrJ1Wz-YCHmbHGH8Y",
@@ -13,11 +14,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
 export const dataRef = doc(db, "app", "data");
 export const settingsRef = doc(db, "app", "settings");
 
-// Remove all undefined values recursively (Firestore rejects undefined)
+// Remove all undefined values recursively
 const clean = (obj) => {
   if (Array.isArray(obj)) return obj.map(clean);
   if (obj !== null && typeof obj === "object") {
@@ -31,19 +33,13 @@ const clean = (obj) => {
 };
 
 export const saveData = async (data) => {
-  try {
-    await setDoc(dataRef, clean(data));
-  } catch (e) {
-    console.error("Save error:", e);
-  }
+  try { await setDoc(dataRef, clean(data)); }
+  catch (e) { console.error("Save error:", e); }
 };
 
 export const saveSettings = async (settings) => {
-  try {
-    await setDoc(settingsRef, clean(settings));
-  } catch (e) {
-    console.error("Settings save error:", e);
-  }
+  try { await setDoc(settingsRef, clean(settings)); }
+  catch (e) { console.error("Settings save error:", e); }
 };
 
 export const listenData = (callback) => {
@@ -57,6 +53,11 @@ export const listenSettings = (callback) => {
     if (snap.exists()) callback(snap.data());
   });
 };
+
+// Auth helpers
+export const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
+export const logout = () => signOut(auth);
+export const onAuthChange = (callback) => onAuthStateChanged(auth, callback);
 
 // Upload file to Cloudinary
 const CLOUD_NAME = "daztjuxmr";
