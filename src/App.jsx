@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { saveData, saveSettings, listenData, listenSettings, uploadFile } from "./firebase.js";
+import { saveData, saveSettings, listenData, listenSettings, uploadFile, login, logout, onAuthChange } from "./firebase.js";
 
 /* ── Theme definitions ── */
 const THEMES = {
@@ -160,6 +160,10 @@ export default function App() {
   const [confirmDel, setConfirmDel] = useState(null);
   const [emojiPicker, setEmojiPicker] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [user, setUser] = useState(null);        // Firebase auth user
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPass, setLoginPass] = useState("");
+  const [loginError, setLoginError] = useState("");
 
   const fileRef = useRef();
   const fileRef2 = useRef();
@@ -183,7 +187,15 @@ export default function App() {
     return () => { unsub1(); unsub2(); };
   }, []);
 
+  // Firebase auth listener
+  useEffect(() => {
+    const unsub = onAuthChange((u) => setUser(u));
+    return () => unsub();
+  }, []);
+
   if (!ready) return null;
+
+  const isOwner = !!user;  // logged in = can edit
 
   const zh = lang === "zh";
   const C = THEMES[theme] || THEMES.blush;
@@ -376,7 +388,7 @@ export default function App() {
           </div>
         ))}
 
-        <div style={{ display: "flex", gap: 12, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.b}` }}>
+        {isOwner && <div style={{ display: "flex", gap: 12, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.b}` }}>
           <button onClick={() => {
             setForm({ title: entry.title, date: entry.date, text: entry.text || "", blocks: entry.blocks || [], _id: entry.id });
             setPage("te");
@@ -385,7 +397,7 @@ export default function App() {
             const r = await doAI(`Rewrite warmly 1-2 sentences. Just text.\n${entry.title}\n${entry.text || ""}`);
             sortTimeline(tl.map((z) => (z.id === entry.id ? { ...z, text: r.trim().replace(/^["']|["']$/g, "") } : z)));
           }} style={{ ...iconBtn, gap: 4, fontSize: 13, color: C.a }}>{StarIcon} {zh ? "重写" : "Rewrite"}</button>
-        </div>
+        </div>}
       </div>
     );
   }
@@ -400,7 +412,7 @@ export default function App() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px 0" }}>
         <div style={{ fontSize: 11, color: C.s, letterSpacing: 2.5, fontWeight: 600 }}>DUDU SPACE</div>
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => { setPhotos([]); setTarget(null); setModal("up"); }} style={{ ...iconBtn, color: C.t }}>{PlusIcon}</button>
+          {isOwner && <button onClick={() => { setPhotos([]); setTarget(null); setModal("up"); }} style={{ ...iconBtn, color: C.t }}>{PlusIcon}</button>}
           <button onClick={() => setModal("se")} style={{ ...iconBtn, color: C.s }}>{GearIcon}</button>
         </div>
       </div>
@@ -483,12 +495,12 @@ export default function App() {
         {/* ── TIMELINE TAB ── */}
         {tab === "tl" && (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {isOwner && <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               <button onClick={() => setModal("ai")} style={{ flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${C.b}`, background: "#fff", cursor: "pointer", fontSize: 13, color: C.t, fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                 <span style={{ color: C.a }}>{StarIcon}</span>{zh ? "AI整理" : "AI Organize"}
               </button>
               <button onClick={() => { setForm({}); setPage("te"); }} style={btnStyle()}>{lb("add")}</button>
-            </div>
+            </div>}
 
             {tl.map((x, i) => (
               <div key={x.id} style={{ display: "flex", gap: 14 }}>
@@ -513,7 +525,7 @@ export default function App() {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <span style={{ fontFamily: SERIF, fontSize: 20, color: C.t }}>{lb("st")}</span>
-              <button onClick={() => { setForm({ emoji: "📖" }); setModal("na"); }} style={btnStyle()}>{lb("nl")}</button>
+              {isOwner && <button onClick={() => { setForm({ emoji: "📖" }); setModal("na"); }} style={btnStyle()}>{lb("nl")}</button>}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {al.map((a) => (
@@ -525,12 +537,12 @@ export default function App() {
                       <div style={{ fontSize: 11, color: a.cover ? "rgba(255,255,255,.8)" : C.s, marginTop: 2 }}>{(a.photos || []).length} {lb("ph")}</div>
                     </div>
                   </div>
-                  <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                  {isOwner && <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
                     <button onClick={(e) => { e.stopPropagation(); setForm({ emoji: a.emoji, title: a.title, _id: a.id }); setModal("na"); }}
                       style={{ ...iconBtn, color: a.cover ? "#fff" : C.s, background: a.cover ? "rgba(0,0,0,.3)" : "rgba(255,255,255,.7)", borderRadius: "50%", width: 28, height: 28, justifyContent: "center", fontSize: 12 }}>✎</button>
                     <button onClick={(e) => { e.stopPropagation(); setConfirmDel({ type: "album", id: a.id }); }}
                       style={{ ...iconBtn, color: a.cover ? "#fff" : C.s, background: a.cover ? "rgba(0,0,0,.3)" : "rgba(255,255,255,.7)", borderRadius: "50%", width: 28, height: 28, justifyContent: "center" }}>{TrashIcon}</button>
-                  </div>
+                  </div>}
                 </div>
               ))}
             </div>
@@ -573,8 +585,8 @@ export default function App() {
               <button onClick={() => setSub(null)} style={iconBtn}>{BackIcon}</button>
               <span style={{ fontSize: 22 }}>{currentAlbum.emoji}</span>
               <span style={{ fontFamily: SERIF, fontSize: 20, color: C.t, flex: 1 }}>{currentAlbum.title}</span>
-              <button onClick={() => { setForm({ emoji: currentAlbum.emoji, title: currentAlbum.title, _id: currentAlbum.id }); setModal("na"); }}
-                style={{ ...iconBtn, color: C.s, fontSize: 13 }}>✎</button>
+              {isOwner && <button onClick={() => { setForm({ emoji: currentAlbum.emoji, title: currentAlbum.title, _id: currentAlbum.id }); setModal("na"); }}
+                style={{ ...iconBtn, color: C.s, fontSize: 13 }}>✎</button>}
             </div>
 
             {currentAlbum.cover ? (
@@ -605,10 +617,10 @@ export default function App() {
               <div style={{ textAlign: "center", padding: 40, color: C.s, fontSize: 13 }}>{zh ? "还没有照片" : "No photos yet"}</div>
             )}
 
-            <button onClick={() => fileRef.current?.click()}
+            {isOwner && <button onClick={() => fileRef.current?.click()}
               style={{ position: "fixed", bottom: 80, right: 20, width: 48, height: 48, borderRadius: "50%", border: "none", background: C.t, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
               {PlusIcon}
-            </button>
+            </button>}
 
             {/* Photo viewer */}
             {viewer && (
@@ -618,10 +630,10 @@ export default function App() {
                 ) : (
                   <img src={viewer.src} alt="" style={{ maxWidth: "92%", maxHeight: "75vh", borderRadius: 8 }} onClick={(e) => e.stopPropagation()} />
                 )}
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDel({ type: "photo", id: viewer.id }); }}
+                {isOwner && <button onClick={(e) => { e.stopPropagation(); setConfirmDel({ type: "photo", id: viewer.id }); }}
                   style={{ marginTop: 16, padding: "8px 20px", borderRadius: 20, border: "1px solid rgba(255,255,255,.2)", background: "transparent", color: "#fff", fontSize: 12, cursor: "pointer" }}>
                   {zh ? "删除" : "Delete"}
-                </button>
+                </button>}
               </div>
             )}
           </>
@@ -633,7 +645,7 @@ export default function App() {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <span style={{ fontFamily: SERIF, fontSize: 20, color: C.t }}>{lb("dr")}</span>
-              <button onClick={() => { setForm({ emoji: "🎯" }); setModal("ng"); }} style={btnStyle()}>{lb("nl")}</button>
+              {isOwner && <button onClick={() => { setForm({ emoji: "🎯" }); setModal("ng"); }} style={btnStyle()}>{lb("nl")}</button>}
             </div>
 
             {gl.map((g) => (
@@ -641,8 +653,8 @@ export default function App() {
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 16, fontWeight: 600, color: C.t }}>{g.emoji} {g.title}</span>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => { setForm({ emoji: g.emoji, title: g.title, _id: g.id }); setModal("ng"); }} style={{ ...iconBtn, color: C.s, fontSize: 12 }}>✎</button>
-                    <button onClick={() => setConfirmDel({ type: "goal", id: g.id })} style={{ ...iconBtn, color: C.s }}>{TrashIcon}</button>
+                    {isOwner && <><button onClick={() => { setForm({ emoji: g.emoji, title: g.title, _id: g.id }); setModal("ng"); }} style={{ ...iconBtn, color: C.s, fontSize: 12 }}>✎</button>
+                    <button onClick={() => setConfirmDel({ type: "goal", id: g.id })} style={{ ...iconBtn, color: C.s }}>{TrashIcon}</button></>}
                   </div>
                 </div>
 
@@ -684,7 +696,7 @@ export default function App() {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <span style={{ fontFamily: SERIF, fontSize: 20, color: C.t }}>{lb("wh")}</span>
-              <button onClick={() => { setForm({ from: zh ? "我" : "Me" }); setModal("nw"); }} style={btnStyle()}>{zh ? "+ 写" : "+ Write"}</button>
+              {isOwner && <button onClick={() => { setForm({ from: zh ? "我" : "Me" }); setModal("nw"); }} style={btnStyle()}>{zh ? "+ 写" : "+ Write"}</button>}
             </div>
 
             {wh.map((w, i) => (
@@ -693,8 +705,8 @@ export default function App() {
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
                   <span style={{ fontSize: 12, color: C.s }}>— {w.from} · {formatShort(w.date)}</span>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => { setForm({ text: w.text, from: w.from, _id: w.id }); setModal("nw"); }} style={{ ...iconBtn, color: C.s, fontSize: 12 }}>✎</button>
-                    <button onClick={() => setConfirmDel({ type: "whisper", id: w.id })} style={{ ...iconBtn, color: C.s }}>{TrashIcon}</button>
+                    {isOwner && <><button onClick={() => { setForm({ text: w.text, from: w.from, _id: w.id }); setModal("nw"); }} style={{ ...iconBtn, color: C.s, fontSize: 12 }}>✎</button>
+                    <button onClick={() => setConfirmDel({ type: "whisper", id: w.id })} style={{ ...iconBtn, color: C.s }}>{TrashIcon}</button></>}
                   </div>
                 </div>
               </div>
@@ -914,8 +926,35 @@ export default function App() {
         </div>
 
         <label style={labelStyle}>{zh ? "纪念日" : "Anniversary"}</label>
-        <input type="date" value={D.startDate || ""} onChange={(e) => updateData({ ...D, startDate: e.target.value })} style={inputStyle} />
-        <p style={{ fontSize: 12, color: C.s }}>♡</p>
+        {isOwner && <input type="date" value={D.startDate || ""} onChange={(e) => updateData({ ...D, startDate: e.target.value })} style={inputStyle} />}
+        {!isOwner && D.startDate && <div style={{ fontSize: 14, color: C.t, marginBottom: 10 }}>{formatDate(D.startDate)}</div>}
+
+        <div style={{ marginTop: 20, borderTop: `1px solid ${C.b}`, paddingTop: 16 }}>
+          <label style={labelStyle}>{zh ? "账号" : "Account"}</label>
+          {isOwner ? (
+            <div>
+              <div style={{ fontSize: 13, color: C.s, marginBottom: 8 }}>{user.email}</div>
+              <button onClick={() => logout()} style={{ padding: "10px 20px", borderRadius: 8, border: `1px solid ${C.b}`, background: "#fff", color: C.s, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{zh ? "退出登录" : "Log out"}</button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 13, color: C.s, marginBottom: 10 }}>{zh ? "登录后可编辑内容" : "Log in to edit content"}</div>
+              <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="Email" type="email" style={inputStyle} />
+              <input value={loginPass} onChange={(e) => setLoginPass(e.target.value)} placeholder={zh ? "密码" : "Password"} type="password" style={inputStyle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    login(loginEmail, loginPass).then(() => { setLoginError(""); setModal(""); }).catch(() => setLoginError(zh ? "邮箱或密码错误" : "Invalid email or password"));
+                  }
+                }} />
+              {loginError && <div style={{ color: "#c97070", fontSize: 13, marginBottom: 8 }}>{loginError}</div>}
+              <button onClick={() => {
+                login(loginEmail, loginPass).then(() => { setLoginError(""); setModal(""); }).catch(() => setLoginError(zh ? "邮箱或密码错误" : "Invalid email or password"));
+              }} style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: C.t, color: "#fff", fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{zh ? "登录" : "Log in"}</button>
+            </div>
+          )}
+        </div>
+
+        <p style={{ fontSize: 12, color: C.s, marginTop: 16 }}>♡</p>
       </Overlay>
 
 
